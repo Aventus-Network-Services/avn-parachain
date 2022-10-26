@@ -46,8 +46,8 @@ jobs:
       - name: Test Code
         run: cargo test
 
-      - name: benchmark test Code
-        run: cargo test --features runtime-benchmarks -- benchmarks
+      #- name: benchmark test Code
+      #  run: cargo test --features runtime-benchmarks -- benchmarks
 
   integration_test:
     name: integration-test

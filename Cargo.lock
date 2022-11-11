@@ -1531,6 +1531,7 @@ dependencies = [
  "hex-literal",
  "impl-trait-for-tuples",
  "pallet-balances",
+ "pallet-parachain-staking",
  "pallet-session",
  "pallet-timestamp",
  "parity-scale-codec",

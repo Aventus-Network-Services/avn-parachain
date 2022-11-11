@@ -2,10 +2,12 @@
 
 #![cfg(test)]
 
+use pallet_parachain_staking;
 use crate::{self as pallet_avn, *};
 use frame_support::{parameter_types, traits::GenesisBuild, weights::Weight, BasicExternalities};
 use frame_system as system;
 use pallet_session as session;
+use frame_system::RawOrigin;
 use sp_core::{
     offchain::testing::{OffchainState, PendingRequest},
     H256,
@@ -18,7 +20,11 @@ use sp_runtime::{
 use std::cell::RefCell;
 
 pub type AccountId = <TestRuntime as system::Config>::AccountId;
+pub type AuthorityId = <TestRuntime as Config>::AuthorityId;
 pub type AVN = Pallet<TestRuntime>;
+
+// pub type PalletParachainStaking = pallet_parachain_staking::{Pallet, Call, Storage, Config<T>, Event<T>};
+pub type PalletParachainStaking = pallet_parachain_staking::Pallet<TestRuntime>;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<TestRuntime>;
 type Block = frame_system::mocking::MockBlock<TestRuntime>;
@@ -31,6 +37,7 @@ frame_support::construct_runtime!(
     {
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>},
+        ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Config<T>, Event<T>},
         Avn: pallet_avn::{Pallet, Storage},
     }
 );
@@ -83,6 +90,60 @@ parameter_types! {
     pub const Offset: u64 = 0;
     pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(33);
 }
+
+// impl pallet_parachain_staking::Config for TestRuntime {
+//     type Event = Event;
+//     type Currency = Balances;
+//     type UpdateOrigin = EnsureRoot<AccountId>;
+//     type PotId = PotId;
+//     type MaxCandidates = MaxCandidates;
+//     type MinCandidates = MinCandidates;
+//     type MaxInvulnerables = MaxInvulnerables;
+//     type ValidatorId = <Self as frame_system::Config>::AccountId;
+//     type ValidatorIdOf = IdentityCollator;
+//     type ValidatorRegistration = IsRegistered;
+//     type KickThreshold = KickThreshold;
+//     type WeightInfo = ();
+// }
+
+// parameter_types! {
+//     pub const MinBlocksPerEra: u32 = 3;
+//     pub const RewardPaymentDelay: u32 = 2;
+//     pub const MinSelectedCandidates: u32 = 5;
+//     pub const MaxTopNominationsPerCandidate: u32 = 4;
+//     pub const MaxBottomNominationsPerCandidate: u32 = 4;
+//     pub const MaxNominationsPerNominator: u32 = 4;
+//     pub const MinNominationPerCollator: u128 = 3;
+//     pub const ErasPerGrowthPeriod: u32 = 2;
+//     pub const RewardPotId: PalletId = PalletId(*b"av/vamgr");
+// }
+
+// pub struct IsRegistered;
+// impl ValidatorRegistration<AccountId> for IsRegistered {
+//     fn is_registered(_id: &AccountId) -> bool {
+//         true
+//     }
+// }
+
+// impl Config for Test {
+//     type Call = Call;
+//     type Event = Event;
+//     type Currency = Balances;
+//     type RewardPaymentDelay = RewardPaymentDelay;
+//     type MinBlocksPerEra = MinBlocksPerEra;
+//     type MinSelectedCandidates = MinSelectedCandidates;
+//     type MaxTopNominationsPerCandidate = MaxTopNominationsPerCandidate;
+//     type MaxBottomNominationsPerCandidate = MaxBottomNominationsPerCandidate;
+//     type MaxNominationsPerNominator = MaxNominationsPerNominator;
+//     type MinNominationPerCollator = MinNominationPerCollator;
+//     type RewardPotId = RewardPotId;
+//     type ErasPerGrowthPeriod = ErasPerGrowthPeriod;
+//     type ProcessedEventsChecker = ();
+//     type Public = AccountId;
+//     type Signature = Signature;
+//     type CollatorSessionRegistration = IsRegistered;
+//     type WeightInfo = ();
+// }
 
 thread_local! {
     // validator accounts (aka public addresses, public keys-ish)
@@ -203,3 +264,36 @@ pub fn mock_post_request(state: &mut OffchainState, body: Vec<u8>, response: Opt
         ..Default::default()
     });
 }
+
+pub fn setup_keys()  {
+    let validators = AVN::validators();
+    let keys: Vec<UintAuthorityId> = validators.into_iter().map(|v| v.key).collect();
+
+    UintAuthorityId::set_all_keys(keys);
+}
+
+fn set_session_keys(collator_id: &AccountId, auth_id: AuthorityId) {
+    pallet_session::NextKeys::<TestRuntime>::insert::<AccountId, UintAuthorityId>(
+        *collator_id,
+        auth_id
+    );
+}
+
+// pub fn register_collator_candidate(collator_id: &AccountId, auth_id: AuthorityId) {
+//     set_session_keys(collator_id, auth_id);
+//     let _ = PalletParachainStaking::join_candidates(
+//         RawOrigin::Signed(
+//             collator_id.clone(),
+//         ).into(),
+//         10u128,
+//         0u32
+//     );
+// }
+
+// pub fn remove_collator_candidate(collator_id: &AccountId) {
+//     let _ = PalletCollatorSelection::leave_intent(
+//         RawOrigin::Signed(
+//             collator_id.clone(),
+//         ).into(),
+//     );
+// }

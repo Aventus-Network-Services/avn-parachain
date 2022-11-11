@@ -102,7 +102,7 @@ impl pallet_balances::Config for Test {
     type ReserveIdentifier = [u8; 4];
     type MaxLocks = ();
     type Balance = Balance;
-    type Event = Event;
+    type Event = ();
     type DustRemoval = ();
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
@@ -130,7 +130,7 @@ impl ValidatorRegistration<AccountId> for IsRegistered {
 
 impl staking::Config for Test {
     type Call = Call;
-    type Event = Event;
+    type Event = ();
     type Currency = Balances;
     type RewardPaymentDelay = RewardPaymentDelay;
     type MinBlocksPerEra = MinBlocksPerEra;

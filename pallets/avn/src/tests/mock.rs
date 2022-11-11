@@ -20,12 +20,12 @@ use sp_core::{
 };
 use sp_runtime::{
     testing::{Header, UintAuthorityId},
-    traits::{BlakeTwo256, ConvertInto, IdentityLookup},
+    traits::{BlakeTwo256, ConvertInto, IdentityLookup, Verify},
     Perbill,
 };
 use std::cell::RefCell;
 
-pub type AccountId = <Test as system::Config>::AccountId;
+pub type AccountId = <Signature as Verify>::Signer;
 pub type AuthorityId = <Test as Config>::AuthorityId;
 pub type AVN = Pallet<Test>;
 pub type Signature = sr25519::Signature;
@@ -77,7 +77,7 @@ impl system::Config for Test {
     type Call = Call;
     type Hash = H256;
     type Hashing = BlakeTwo256;
-    type AccountId = u64;
+    type AccountId = AccountId;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
     type Event = ();
@@ -156,15 +156,18 @@ parameter_types! {
 
 thread_local! {
     // validator accounts (aka public addresses, public keys-ish)
-    pub static VALIDATORS: RefCell<Option<Vec<u64>>> = RefCell::new(Some(vec![1, 2, 3]));
+    pub static VALIDATOR_SEEDS: RefCell<Option<Vec<u64>>> = RefCell::new(Some(vec![1, 2, 3]));
 }
 
 pub type SessionIndex = u32;
+pub type ValidatorId = <Test as session::Config>::ValidatorId;
 
 pub struct TestSessionManager;
-impl session::SessionManager<u64> for TestSessionManager {
-    fn new_session(_new_index: SessionIndex) -> Option<Vec<u64>> {
-        VALIDATORS.with(|l| l.borrow_mut().take())
+impl session::SessionManager<ValidatorId> for TestSessionManager {
+    fn new_session(_new_index: SessionIndex) -> Option<Vec<ValidatorId>> {
+        let seeds = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
+        let validatorsIds = seeds.into_iter().map(|id| TestAccount::new(id).account_id()).collect();
+        Some(validatorsIds)
     }
     fn end_session(_: SessionIndex) {}
     fn start_session(_: SessionIndex) {}
@@ -176,10 +179,39 @@ impl session::Config for Test {
     type ShouldEndSession = session::PeriodicSessions<Period, Offset>;
     type SessionHandler = (AVN,);
     type Event = ();
-    type ValidatorId = u64;
+    type ValidatorId = AccountId;
     type ValidatorIdOf = ConvertInto;
     type NextSessionRotation = session::PeriodicSessions<Period, Offset>;
     type WeightInfo = ();
+}
+
+// TODO: Extract this to a common place, and remove it from here and parachain-staking
+pub struct TestAccount {
+    pub seed: [u8; 32],
+    pub id: u64,
+}
+
+impl TestAccount {
+    pub fn new(id: u64) -> Self {
+        TestAccount { seed: Self::into_32_bytes(&id), id: id }
+    }
+
+    pub fn account_id(&self) -> AccountId {
+        return AccountId::decode(&mut self.key_pair().public().to_vec().as_slice()).unwrap()
+    }
+
+    pub fn key_pair(&self) -> sr25519::Pair {
+        return sr25519::Pair::from_seed(&self.seed)
+    }
+
+    fn into_32_bytes(account: &u64) -> [u8; 32] {
+        let mut bytes = account.encode();
+        let mut bytes32: Vec<u8> = vec![0; 32 - bytes.len()];
+        bytes32.append(&mut bytes);
+        let mut data: [u8; 32] = Default::default();
+        data.copy_from_slice(&bytes32[0..32]);
+        data
+    }
 }
 
 pub struct ExtBuilder {
@@ -201,7 +233,8 @@ impl ExtBuilder {
     }
 
     pub fn with_validators(mut self) -> Self {
-        let validators: Vec<u64> = VALIDATORS.with(|l| l.borrow_mut().take().unwrap());
+        let seeds: Vec<u64> = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
+        let validators: Vec<AccountId> = seeds.into_iter().map(|id| TestAccount::new(id).account_id()).collect();
 
         BasicExternalities::execute_with_storage(&mut self.storage, || {
             for ref k in &validators {
@@ -210,7 +243,7 @@ impl ExtBuilder {
         });
 
         let _ = pallet_session::GenesisConfig::<Test> {
-            keys: validators.into_iter().map(|v| (v, v, UintAuthorityId(v))).collect(),
+            keys: validators.into_iter().map(|v| (v, v, UintAuthorityId(v::id))).collect(),
         }
         .assimilate_storage(&mut self.storage);
         self
@@ -229,7 +262,7 @@ pub fn keys_setup_return_good_validator(
 
     // AuthorityId type for Test is UintAuthorityId
     let keys: Vec<UintAuthorityId> = validators.into_iter().map(|v| v.key).collect();
-    UintAuthorityId::set_all_keys(keys); // Keys in the setup are either () or (1,2,3). See VALIDATORS.
+    UintAuthorityId::set_all_keys(keys); // Keys in the setup are either () or (1,2,3). See VALIDATOR_SEEDS.
     let current_node_validator = AVN::get_validator_for_current_node().unwrap(); // filters validators() to just those corresponding to this validator
     assert_eq!(current_node_validator.key, UintAuthorityId(1));
     assert_eq!(current_node_validator.account_id, 1);

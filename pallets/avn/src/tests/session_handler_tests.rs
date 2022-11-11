@@ -5,7 +5,7 @@ use sp_avn_common::event_types::Validator;
 use sp_runtime::testing::UintAuthorityId;
 
 fn change_validators_good() {
-    VALIDATORS.with(|v| {
+    VALIDATOR_SEEDS.with(|v| {
         let mut v = v.borrow_mut();
         *v = Some(vec![1, 2]);
         Some(v.clone())
@@ -15,7 +15,7 @@ fn change_validators_good() {
 }
 
 fn change_validators_empty() {
-    VALIDATORS.with(|v| {
+    VALIDATOR_SEEDS.with(|v| {
         let mut v = v.borrow_mut();
         *v = Some(vec![]);
         Some(v.clone())
@@ -25,7 +25,7 @@ fn change_validators_empty() {
 }
 
 fn advance_session_no_validators_change() {
-    VALIDATORS.with(|v| {
+    VALIDATOR_SEEDS.with(|v| {
         let mut v = v.borrow_mut();
         *v = None;
         Some(v.clone())

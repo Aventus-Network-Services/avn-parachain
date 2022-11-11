@@ -146,9 +146,11 @@ impl frame_system::Config for Test {
     type OnSetCode = ();
     type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
+
 parameter_types! {
     pub const ExistentialDeposit: u128 = 0;
 }
+
 impl pallet_balances::Config for Test {
     type MaxReserves = ();
     type ReserveIdentifier = [u8; 4];

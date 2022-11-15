@@ -12,10 +12,10 @@ use frame_support::{
     PalletId};
 use frame_system as system;
 use pallet_session as session;
-use frame_system::RawOrigin;
 use sp_core::{
     offchain::testing::{OffchainState, PendingRequest},
     H256,
+    Pair,
     sr25519,
 };
 use sp_runtime::{
@@ -31,7 +31,6 @@ pub type AVN = Pallet<Test>;
 pub type Signature = sr25519::Signature;
 pub type Balance = u128;
 
-pub type PalletParachainStaking = staking::Pallet<Test>;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -166,8 +165,8 @@ pub struct TestSessionManager;
 impl session::SessionManager<ValidatorId> for TestSessionManager {
     fn new_session(_new_index: SessionIndex) -> Option<Vec<ValidatorId>> {
         let seeds = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
-        let validatorsIds = seeds.into_iter().map(|id| TestAccount::new(id).account_id()).collect();
-        Some(validatorsIds)
+        let validator_ids = seeds.into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
+        Some(validator_ids)
     }
     fn end_session(_: SessionIndex) {}
     fn start_session(_: SessionIndex) {}
@@ -188,12 +187,11 @@ impl session::Config for Test {
 // TODO: Extract this to a common place, and remove it from here and parachain-staking
 pub struct TestAccount {
     pub seed: [u8; 32],
-    pub id: u64,
 }
 
 impl TestAccount {
     pub fn new(id: u64) -> Self {
-        TestAccount { seed: Self::into_32_bytes(&id), id: id }
+        TestAccount { seed: Self::into_32_bytes(&id)}
     }
 
     pub fn account_id(&self) -> AccountId {
@@ -212,6 +210,23 @@ impl TestAccount {
         data.copy_from_slice(&bytes32[0..32]);
         data
     }
+
+    pub fn derive_account_id(id: u64) -> AccountId {
+        return Self::new(id).account_id();
+    }
+
+    pub fn derive_validator(id: u64) -> Validator<<Test as Config>::AuthorityId, AccountId> {
+        return Self::derive_custom_validator(id, id)
+    }
+
+    pub fn derive_custom_validator(id: u64, auth_id: u64) -> Validator<<Test as Config>::AuthorityId, AccountId> {
+        let account_id = Self::derive_account_id(id);
+        return Validator {
+            account_id: account_id,
+            key: UintAuthorityId(auth_id)
+        }
+    }
+
 }
 
 pub struct ExtBuilder {
@@ -234,7 +249,7 @@ impl ExtBuilder {
 
     pub fn with_validators(mut self) -> Self {
         let seeds: Vec<u64> = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
-        let validators: Vec<AccountId> = seeds.into_iter().map(|id| TestAccount::new(id).account_id()).collect();
+        let validators: Vec<AccountId> = seeds.clone().into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
 
         BasicExternalities::execute_with_storage(&mut self.storage, || {
             for ref k in &validators {
@@ -243,7 +258,11 @@ impl ExtBuilder {
         });
 
         let _ = pallet_session::GenesisConfig::<Test> {
-            keys: validators.into_iter().map(|v| (v, v, UintAuthorityId(v::id))).collect(),
+            keys: seeds.into_iter().enumerate().map(|(i, seed)| (
+                validators[i],
+                validators[i],
+                UintAuthorityId(seed)
+            )).collect(),
         }
         .assimilate_storage(&mut self.storage);
         self
@@ -255,9 +274,10 @@ impl ExtBuilder {
 #[allow(dead_code)]
 pub fn keys_setup_return_good_validator(
 ) -> Validator<<Test as Config>::AuthorityId, AccountId> {
-    let validators = AVN::validators(); // Validators are tuples (UintAuthorityId(int), int)
-    assert_eq!(validators[0], Validator { account_id: 1, key: UintAuthorityId(1) });
-    assert_eq!(validators[2], Validator { account_id: 3, key: UintAuthorityId(3) });
+    let validators = AVN::validators();
+    assert_eq!(validators[0], TestAccount::derive_validator(1) );
+    assert_eq!(validators[1], TestAccount::derive_validator(2) );
+    assert_eq!(validators[2], TestAccount::derive_validator(3) );
     assert_eq!(validators.len(), 3);
 
     // AuthorityId type for Test is UintAuthorityId
@@ -265,16 +285,15 @@ pub fn keys_setup_return_good_validator(
     UintAuthorityId::set_all_keys(keys); // Keys in the setup are either () or (1,2,3). See VALIDATOR_SEEDS.
     let current_node_validator = AVN::get_validator_for_current_node().unwrap(); // filters validators() to just those corresponding to this validator
     assert_eq!(current_node_validator.key, UintAuthorityId(1));
-    assert_eq!(current_node_validator.account_id, 1);
-
-    assert_eq!(current_node_validator, Validator { account_id: 1, key: UintAuthorityId(1) });
+    assert_eq!(current_node_validator.account_id, TestAccount::derive_account_id(1));
+    assert_eq!(current_node_validator, TestAccount::derive_validator(1));
 
     return current_node_validator
 }
 
 #[allow(dead_code)]
 pub fn bad_authority() -> Validator<<Test as Config>::AuthorityId, AccountId> {
-    let validator = Validator { account_id: 0, key: UintAuthorityId(0) };
+    let validator = TestAccount::derive_validator(0);
 
     return validator
 }
@@ -307,6 +326,7 @@ pub fn mock_post_request(state: &mut OffchainState, body: Vec<u8>, response: Opt
     });
 }
 
+#[allow(dead_code)]
 pub fn setup_keys()  {
     let validators = AVN::validators();
     let keys: Vec<UintAuthorityId> = validators.into_iter().map(|v| v.key).collect();
@@ -314,6 +334,7 @@ pub fn setup_keys()  {
     UintAuthorityId::set_all_keys(keys);
 }
 
+#[allow(dead_code)]
 fn set_session_keys(collator_id: &AccountId, auth_id: AuthorityId) {
     pallet_session::NextKeys::<Test>::insert::<AccountId, UintAuthorityId>(
         *collator_id,

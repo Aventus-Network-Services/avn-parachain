@@ -1,8 +1,6 @@
 // Copyright 2022 Aventus Network Services (UK) Ltd.
 
 use crate::mock::*;
-use sp_avn_common::event_types::Validator;
-use sp_runtime::testing::UintAuthorityId;
 
 fn change_validators_good() {
     VALIDATOR_SEEDS.with(|v| {
@@ -57,11 +55,7 @@ fn keys_populated_correctly_on_genesis() {
     ext.execute_with(|| {
         assert!(
             AVN::validators() ==
-                vec![
-                    Validator { account_id: 1, key: UintAuthorityId(1) },
-                    Validator { account_id: 2, key: UintAuthorityId(2) },
-                    Validator { account_id: 3, key: UintAuthorityId(3) }
-                ]
+            vec![ TestAccount::derive_validator(1), TestAccount::derive_validator(2), TestAccount::derive_validator(3)]
         );
     });
 }
@@ -73,22 +67,14 @@ fn keys_populated_correctly_new_session_same_validators_change() {
     ext.execute_with(|| {
         assert!(
             AVN::validators() ==
-                vec![
-                    Validator { account_id: 1, key: UintAuthorityId(1) },
-                    Validator { account_id: 2, key: UintAuthorityId(2) },
-                    Validator { account_id: 3, key: UintAuthorityId(3) }
-                ]
+            vec![ TestAccount::derive_validator(1), TestAccount::derive_validator(2), TestAccount::derive_validator(3)]
         );
 
         advance_session();
 
         assert!(
             AVN::validators() ==
-                vec![
-                    Validator { account_id: 1, key: UintAuthorityId(1) },
-                    Validator { account_id: 2, key: UintAuthorityId(2) },
-                    Validator { account_id: 3, key: UintAuthorityId(3) }
-                ]
+            vec![ TestAccount::derive_validator(1), TestAccount::derive_validator(2), TestAccount::derive_validator(3)]
         );
     });
 }
@@ -100,21 +86,14 @@ fn keys_populated_correctly_new_session_with_good_change() {
     ext.execute_with(|| {
         assert!(
             AVN::validators() ==
-                vec![
-                    Validator { account_id: 1, key: UintAuthorityId(1) },
-                    Validator { account_id: 2, key: UintAuthorityId(2) },
-                    Validator { account_id: 3, key: UintAuthorityId(3) }
-                ]
+            vec![ TestAccount::derive_validator(1), TestAccount::derive_validator(2), TestAccount::derive_validator(3)]
         );
 
         change_validators_good();
 
         assert!(
             AVN::validators() ==
-                vec![
-                    Validator { account_id: 1, key: UintAuthorityId(1) },
-                    Validator { account_id: 2, key: UintAuthorityId(2) }
-                ]
+            vec![ TestAccount::derive_validator(1), TestAccount::derive_validator(2)]
         );
     });
 }
@@ -126,11 +105,7 @@ fn keys_populated_correctly_new_session_with_empty_change() {
     ext.execute_with(|| {
         assert!(
             AVN::validators() ==
-                vec![
-                    Validator { account_id: 1, key: UintAuthorityId(1) },
-                    Validator { account_id: 2, key: UintAuthorityId(2) },
-                    Validator { account_id: 3, key: UintAuthorityId(3) }
-                ]
+            vec![ TestAccount::derive_validator(1), TestAccount::derive_validator(2), TestAccount::derive_validator(3)]
         );
 
         change_validators_empty();
@@ -146,22 +121,14 @@ fn keys_populated_correctly_new_session_with_no_change() {
     ext.execute_with(|| {
         assert!(
             AVN::validators() ==
-                vec![
-                    Validator { account_id: 1, key: UintAuthorityId(1) },
-                    Validator { account_id: 2, key: UintAuthorityId(2) },
-                    Validator { account_id: 3, key: UintAuthorityId(3) }
-                ]
+            vec![ TestAccount::derive_validator(1), TestAccount::derive_validator(2), TestAccount::derive_validator(3)]
         );
 
         advance_session_no_validators_change();
 
         assert!(
             AVN::validators() ==
-                vec![
-                    Validator { account_id: 1, key: UintAuthorityId(1) },
-                    Validator { account_id: 2, key: UintAuthorityId(2) },
-                    Validator { account_id: 3, key: UintAuthorityId(3) }
-                ]
+            vec![ TestAccount::derive_validator(1), TestAccount::derive_validator(2), TestAccount::derive_validator(3)]
         );
     });
 }

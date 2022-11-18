@@ -6,7 +6,7 @@ use pallet_parachain_staking as staking;
 use crate::{self as pallet_avn, *};
 use frame_support::{
     parameter_types,
-    traits::{GenesisBuild, ValidatorRegistration},
+    traits::{GenesisBuild, ValidatorRegistration, OnFinalize, OnInitialize},
     weights::Weight,
     BasicExternalities,
     PalletId};
@@ -164,28 +164,28 @@ thread_local! {
 pub type SessionIndex = u32;
 pub type ValidatorId = <Test as session::Config>::ValidatorId;
 
-pub struct TestSessionManager;
-impl session::SessionManager<ValidatorId> for TestSessionManager {
-    fn new_session(_new_index: SessionIndex) -> Option<Vec<ValidatorId>> {
-        // let seeds = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
-        let seeds: Vec<u64> = vec![1,2,3];
+// pub struct TestSessionManager;
+// impl session::SessionManager<ValidatorId> for TestSessionManager {
+//     fn new_session(_new_index: SessionIndex) -> Option<Vec<ValidatorId>> {
+//         // let seeds = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
+//         let seeds: Vec<u64> = vec![1,2,3];
 
-        let validator_ids = seeds.into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
-        Some(validator_ids)
-    }
-    fn end_session(_: SessionIndex) {}
-    fn start_session(_: SessionIndex) {}
-}
+//         let validator_ids = seeds.into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
+//         Some(validator_ids)
+//     }
+//     fn end_session(_: SessionIndex) {}
+//     fn start_session(_: SessionIndex) {}
+// }
 
 impl session::Config for Test {
-    type SessionManager = TestSessionManager;
+    type SessionManager = ParachainStaking;
     type Keys = UintAuthorityId;
-    type ShouldEndSession = session::PeriodicSessions<Period, Offset>;
+    type ShouldEndSession = ParachainStaking;
     type SessionHandler = (AVN,);
     type Event = ();
     type ValidatorId = AccountId;
     type ValidatorIdOf = ConvertInto;
-    type NextSessionRotation = session::PeriodicSessions<Period, Offset>;
+    type NextSessionRotation = ParachainStaking;
     type WeightInfo = ();
 }
 
@@ -416,3 +416,22 @@ pub fn add_collator(account_id: &AccountId, auth_id: AuthorityId) {
 //         ).into(),
 //     );
 // }
+
+
+pub fn advance_session() {
+    // let now = System::block_number().max(1);
+    // System::set_block_number(now + 1);
+    // Session::rotate_session();
+    // assert_eq!(Session::current_index(), (now / Period::get()) as u32);
+
+    let now = System::block_number().max(1);
+    <pallet_parachain_staking::ForceNewEra<Test>>::put(true);
+
+    Balances::on_finalize(System::block_number());
+    System::on_finalize(System::block_number());
+    System::set_block_number(now + 1);
+    System::on_initialize(System::block_number());
+    Balances::on_initialize(System::block_number());
+    Session::on_initialize(System::block_number());
+    ParachainStaking::on_initialize(System::block_number());
+}

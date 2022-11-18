@@ -49,12 +49,22 @@ fn advance_session_and_force_new_validators() {
 // pattern Currently, a straightforward replacement of the test setup leads to an error on the
 // assert_eq!
 
-fn advance_session() {
-    let now = System::block_number().max(1);
-    System::set_block_number(now + 1);
-    Session::rotate_session();
-    assert_eq!(Session::current_index(), (now / Period::get()) as u32);
-}
+// fn advance_session() {
+//     // let now = System::block_number().max(1);
+//     // System::set_block_number(now + 1);
+//     // Session::rotate_session();
+//     // assert_eq!(Session::current_index(), (now / Period::get()) as u32);
+//     let now = System::block_number().max(1);
+//     <crate::parachain_staking::ForceNewEra<TestRuntime>>::put(true);
+
+//     Balances::on_finalize(System::block_number());
+//     System::on_finalize(System::block_number());
+//     System::set_block_number(now + 1);
+//     System::on_initialize(System::block_number());
+//     Balances::on_initialize(System::block_number());
+//     Session::on_initialize(System::block_number());
+//     ParachainStaking::on_initialize(System::block_number());
+// }
 
 fn avn_known_collators() -> sp_application_crypto::Vec<sp_avn_common::event_types::Validator<AuthorityId, sp_core::sr25519::Public>> {
     return AVN::validators();
@@ -136,16 +146,16 @@ mod chain_started_with_invulnerable_collators_only {
                 advance_session();
 
                 let test_session_validators = 	Session::validators();
-                println!("FINAL SESSION VALIDATORS: {:?}", &test_session_validators);
+                println!("\nFINAL SESSION VALIDATORS: {:?}\n", &test_session_validators);
 
                 let final_collators = avn_known_collators();
 
                 assert_eq!(final_collators,
                     vec![
+                    TestAccount::derive_validator(3),
+                    TestAccount::derive_validator(4),
                     TestAccount::derive_validator(1),
                     TestAccount::derive_validator(2),
-                    TestAccount::derive_validator(3),
-                    TestAccount::derive_validator(4)
                     ]);
             })
         }

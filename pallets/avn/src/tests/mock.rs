@@ -11,7 +11,9 @@ use frame_support::{
     BasicExternalities,
     PalletId};
 use frame_system as system;
+
 use pallet_session as session;
+use crate::mock::system::RawOrigin;
 use sp_core::{
     offchain::testing::{OffchainState, PendingRequest},
     H256,
@@ -24,6 +26,7 @@ use sp_runtime::{
     Perbill,
 };
 use std::cell::RefCell;
+use frame_support::assert_ok;
 
 pub type AccountId = <Signature as Verify>::Signer;
 pub type AuthorityId = <Test as Config>::AuthorityId;
@@ -164,7 +167,9 @@ pub type ValidatorId = <Test as session::Config>::ValidatorId;
 pub struct TestSessionManager;
 impl session::SessionManager<ValidatorId> for TestSessionManager {
     fn new_session(_new_index: SessionIndex) -> Option<Vec<ValidatorId>> {
-        let seeds = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
+        // let seeds = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
+        let seeds: Vec<u64> = vec![1,2,3];
+
         let validator_ids = seeds.into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
         Some(validator_ids)
     }
@@ -247,8 +252,49 @@ impl ExtBuilder {
         ext
     }
 
+    pub fn with_parachain_staking(mut self) -> Self{
+        pallet_parachain_staking::GenesisConfig::<Test> {
+            candidates: vec![
+                (TestAccount::derive_account_id(1), 100),
+                (TestAccount::derive_account_id(2), 100),
+                (TestAccount::derive_account_id(3), 100),
+                ],
+            nominations: vec![],
+            delay: 2,
+            min_collator_stake: 10,
+            min_total_nominator_stake: 5,
+        }
+        .assimilate_storage(&mut self.storage)
+        .expect("Parachain Staking's storage can be assimilated");
+        self
+    }
+
+    pub fn with_balances(mut self) -> Self {
+
+        let balances_t: Vec<(AccountId, Balance)> = vec![
+            (TestAccount::derive_account_id(1), 10000),
+            (TestAccount::derive_account_id(2), 10000),
+            (TestAccount::derive_account_id(3), 10000),
+            (TestAccount::derive_account_id(4), 10000),
+            (TestAccount::derive_account_id(5), 10000),
+            (TestAccount::derive_account_id(6), 10000),
+            (TestAccount::derive_account_id(7), 10000),
+            (TestAccount::derive_account_id(8), 10000),
+            ];
+        pallet_balances::GenesisConfig::<Test> {
+            balances: balances_t
+        }
+        .assimilate_storage(&mut self.storage)
+        .expect("Pallet balances storage can be assimilated");
+        self
+    }
+
     pub fn with_validators(mut self) -> Self {
-        let seeds: Vec<u64> = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
+
+        // let seeds: Vec<u64> = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
+        let seeds: Vec<u64> = vec![1,2,3];
+
+
         let validators: Vec<AccountId> = seeds.clone().into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
 
         BasicExternalities::execute_with_storage(&mut self.storage, || {
@@ -344,7 +390,7 @@ fn set_session_keys(collator_id: &AccountId, auth_id: AuthorityId) {
 
 // pub fn register_collator_candidate(collator_id: &AccountId, auth_id: AuthorityId) {
 //     set_session_keys(collator_id, auth_id);
-//     let _ = PalletParachainStaking::join_candidates(
+//     let _ = ParachainStaking::join_candidates(
 //         RawOrigin::Signed(
 //             collator_id.clone(),
 //         ).into(),
@@ -353,8 +399,18 @@ fn set_session_keys(collator_id: &AccountId, auth_id: AuthorityId) {
 //     );
 // }
 
+// pub fn set_collator_key(account_id: &AccountId, auth_id: AuthorityId) {
+//     set_session_keys(account_id, auth_id);
+//     // assert_ok!(ParachainStaking::join_candidates(Origin::signed(account_id.clone()), 9u128, 4u32));
+// }
+
+pub fn add_collator(account_id: &AccountId, auth_id: AuthorityId) {
+    set_session_keys(account_id, auth_id);
+    assert_ok!(ParachainStaking::join_candidates(Origin::signed(account_id.clone()), 11u128, 4u32));
+}
+
 // pub fn remove_collator_candidate(collator_id: &AccountId) {
-//     let _ = PalletCollatorSelection::leave_intent(
+//     let _ = ParachainStaking::leave_intent(
 //         RawOrigin::Signed(
 //             collator_id.clone(),
 //         ).into(),

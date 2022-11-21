@@ -224,6 +224,11 @@ impl TestAccount {
         return Self::derive_custom_validator(id, id)
     }
 
+    pub fn derive_validator_key(id: u64, key: u64) -> Validator<<Test as Config>::AuthorityId, AccountId> {
+        return Self::derive_custom_validator(id, key);
+    }
+
+
     pub fn derive_custom_validator(id: u64, auth_id: u64) -> Validator<<Test as Config>::AuthorityId, AccountId> {
         let account_id = Self::derive_account_id(id);
         return Validator {
@@ -252,13 +257,9 @@ impl ExtBuilder {
         ext
     }
 
-    pub fn with_parachain_staking(mut self) -> Self{
+    pub fn with_staking(mut self, initial_validators:Vec<(sp_core::sr25519::Public, u128)>) -> Self{
         pallet_parachain_staking::GenesisConfig::<Test> {
-            candidates: vec![
-                (TestAccount::derive_account_id(1), 100),
-                (TestAccount::derive_account_id(2), 100),
-                (TestAccount::derive_account_id(3), 100),
-                ],
+            candidates: initial_validators,
             nominations: vec![],
             delay: 2,
             min_collator_stake: 10,
@@ -269,33 +270,17 @@ impl ExtBuilder {
         self
     }
 
-    pub fn with_balances(mut self) -> Self {
-
-        let balances_t: Vec<(AccountId, Balance)> = vec![
-            (TestAccount::derive_account_id(1), 10000),
-            (TestAccount::derive_account_id(2), 10000),
-            (TestAccount::derive_account_id(3), 10000),
-            (TestAccount::derive_account_id(4), 10000),
-            (TestAccount::derive_account_id(5), 10000),
-            (TestAccount::derive_account_id(6), 10000),
-            (TestAccount::derive_account_id(7), 10000),
-            (TestAccount::derive_account_id(8), 10000),
-            ];
+    pub fn with_balances(mut self, account_balances: Vec<(AccountId, Balance)>) -> Self {
         pallet_balances::GenesisConfig::<Test> {
-            balances: balances_t
+            balances: account_balances
         }
         .assimilate_storage(&mut self.storage)
         .expect("Pallet balances storage can be assimilated");
         self
     }
 
-    pub fn with_validators(mut self) -> Self {
-
-        // let seeds: Vec<u64> = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
-        let seeds: Vec<u64> = vec![1,2,3];
-
-
-        let validators: Vec<AccountId> = seeds.clone().into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
+    pub fn with_validators(mut self, initial_validators: Vec<u64>) -> Self {
+        let validators: Vec<AccountId> = initial_validators.clone().into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
 
         BasicExternalities::execute_with_storage(&mut self.storage, || {
             for ref k in &validators {
@@ -304,7 +289,7 @@ impl ExtBuilder {
         });
 
         let _ = pallet_session::GenesisConfig::<Test> {
-            keys: seeds.into_iter().enumerate().map(|(i, seed)| (
+            keys: initial_validators.into_iter().enumerate().map(|(i, seed)| (
                 validators[i],
                 validators[i],
                 UintAuthorityId(seed)
@@ -388,42 +373,21 @@ fn set_session_keys(collator_id: &AccountId, auth_id: AuthorityId) {
     );
 }
 
-// pub fn register_collator_candidate(collator_id: &AccountId, auth_id: AuthorityId) {
-//     set_session_keys(collator_id, auth_id);
-//     let _ = ParachainStaking::join_candidates(
-//         RawOrigin::Signed(
-//             collator_id.clone(),
-//         ).into(),
-//         10u128,
-//         0u32
-//     );
-// }
-
-// pub fn set_collator_key(account_id: &AccountId, auth_id: AuthorityId) {
-//     set_session_keys(account_id, auth_id);
-//     // assert_ok!(ParachainStaking::join_candidates(Origin::signed(account_id.clone()), 9u128, 4u32));
-// }
-
 pub fn add_collator(account_id: &AccountId, auth_id: AuthorityId) {
     set_session_keys(account_id, auth_id);
-    assert_ok!(ParachainStaking::join_candidates(Origin::signed(account_id.clone()), 11u128, 4u32));
+    ParachainStaking::join_candidates(Origin::signed(account_id.clone()), 11u128, 4u32);
 }
 
-// pub fn remove_collator_candidate(collator_id: &AccountId) {
-//     let _ = ParachainStaking::leave_intent(
-//         RawOrigin::Signed(
-//             collator_id.clone(),
-//         ).into(),
-//     );
-// }
-
+pub fn remove_collator(collator_id: &AccountId, validator_count: u32) {
+    ParachainStaking::schedule_leave_candidates(
+        RawOrigin::Signed(
+            collator_id.clone(),
+        ).into(),
+        validator_count
+    );
+}
 
 pub fn advance_session() {
-    // let now = System::block_number().max(1);
-    // System::set_block_number(now + 1);
-    // Session::rotate_session();
-    // assert_eq!(Session::current_index(), (now / Period::get()) as u32);
-
     let now = System::block_number().max(1);
     <pallet_parachain_staking::ForceNewEra<Test>>::put(true);
 

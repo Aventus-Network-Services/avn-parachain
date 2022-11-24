@@ -5,10 +5,6 @@ use crate::{
 };
 use sp_runtime::testing::UintAuthorityId;
 
-// TODO [TYPE: test refactoring][PRI: LOW]:  update this function to work with the mock builder
-// pattern Currently, a straightforward replacement of the test setup leads to an error on the
-// assert_eq!
-
 fn avn_known_collators() -> sp_application_crypto::Vec<sp_avn_common::event_types::Validator<AuthorityId, sp_core::sr25519::Public>> {
     return AVN::validators();
 }
@@ -22,6 +18,12 @@ fn add_collator_candidate(id: AccountId, auth_id: u64) {
 fn remove_collator_candidate(id: AccountId, validators_count: u32) {
     let new_candidate_id = id;
     remove_collator(&new_candidate_id, validators_count);
+}
+
+fn sort_collators(mut collators: Vec<sp_avn_common::event_types::Validator<UintAuthorityId, sp_core::sr25519::Public>>)
+-> Vec<sp_avn_common::event_types::Validator<UintAuthorityId, sp_core::sr25519::Public>>{
+    collators.sort_by(|a, b| a.account_id.partial_cmp(&b.account_id).unwrap());
+    collators
 }
 
 mod chain_started_with_initial_colators {
@@ -117,7 +119,7 @@ mod chain_started_with_initial_colators {
                 advance_session();
                 advance_session();
 
-                let final_collators = avn_known_collators();
+                let mut final_collators = avn_known_collators();
 
                 assert_eq!(final_collators,
                     vec![
@@ -125,6 +127,21 @@ mod chain_started_with_initial_colators {
                     TestAccount::derive_validator(4),
                     TestAccount::derive_validator(1),
                     TestAccount::derive_validator(2),
+                    ]);
+
+                // let sortedCollators = sort_collators(final_collators);
+
+                // println!("sorted collators: {:?}", sortedCollators);
+
+                // println!("sorted collators print check: {:?}", 1);
+                // println!("sorted collators: {:?}", sort_collators(final_collators));
+
+                assert_eq!(sort_collators(final_collators),
+                    vec![
+                    TestAccount::derive_validator(1),
+                    TestAccount::derive_validator(2),
+                    TestAccount::derive_validator(3),
+                    TestAccount::derive_validator(4),
                     ]);
             })
         }

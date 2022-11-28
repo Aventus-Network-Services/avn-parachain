@@ -22,7 +22,7 @@ fn remove_collator_candidate(id: AccountId, validators_count: u32) {
 
 fn sort_collators(mut collators: Vec<sp_avn_common::event_types::Validator<UintAuthorityId, sp_core::sr25519::Public>>)
 -> Vec<sp_avn_common::event_types::Validator<UintAuthorityId, sp_core::sr25519::Public>>{
-    collators.sort_by(|a, b| a.account_id.cmp(&b.account_id));
+    collators.sort_by(|a, b| a.key.cmp(&b.key));
     collators
 }
 
@@ -81,12 +81,10 @@ mod chain_started_with_initial_colators {
 
             advance_session();
 
+            let final_collators = avn_known_collators();
+
             assert_eq!(initial_collators, current_collators);
-            assert_eq!(current_collators, vec![
-                TestAccount::derive_validator(1),
-                TestAccount::derive_validator(2),
-                TestAccount::derive_validator(3),
-            ]);
+            assert_eq!(current_collators, sort_collators(final_collators));
         });
     }
 
@@ -121,23 +119,6 @@ mod chain_started_with_initial_colators {
 
                 let mut final_collators = avn_known_collators();
 
-                let mut final_collators2 = avn_known_collators();
-
-                assert_eq!(final_collators,
-                    vec![
-                    TestAccount::derive_validator(3),
-                    TestAccount::derive_validator(4),
-                    TestAccount::derive_validator(1),
-                    TestAccount::derive_validator(2),
-                    ]);
-
-                let sortedCollators2 = sort_collators(final_collators2);
-
-                println!("sorted collators: {:?}", sortedCollators2);
-
-                // println!("sorted collators print check: {:?}", 1);
-                // println!("sorted collators: {:?}", sort_collators(final_collators));
-
                 assert_eq!(sort_collators(final_collators),
                     vec![
                     TestAccount::derive_validator(1),
@@ -159,10 +140,10 @@ mod chain_started_with_initial_colators {
                 advance_session();
 
                 let final_collators = avn_known_collators();
-                assert_eq!(final_collators, vec![
-                    TestAccount::derive_validator_key(3, 4),
+                assert_eq!(sort_collators(final_collators), vec![
                     TestAccount::derive_validator(1),
                     TestAccount::derive_validator(2),
+                    TestAccount::derive_validator_key(3, 4),
                 ]);
             })
         }
@@ -187,29 +168,15 @@ mod chain_started_with_initial_colators {
                 // add 2 validators
                 add_two_collators_and_force_two_sessions();
 
-                //verify and remove 1 validator
-                let current_collators = avn_known_collators();
-                assert_eq!(current_collators, vec![
-                    TestAccount::derive_validator(5),
-                    TestAccount::derive_validator(3),
-                    TestAccount::derive_validator(4),
-                    TestAccount::derive_validator(1),
-                    TestAccount::derive_validator(2),
-                ]);
-
                 remove_collator_candidate(TestAccount::derive_validator(5).account_id, 5);
+
+                let current_collators = avn_known_collators();
 
                 advance_session();
 
                 //check if validator was removed
                 let final_collators = avn_known_collators();
-                assert_eq!(final_collators, vec![
-                    TestAccount::derive_validator(5),
-                    TestAccount::derive_validator(3),
-                    TestAccount::derive_validator(4),
-                    TestAccount::derive_validator(1),
-                    TestAccount::derive_validator(2),
-                ]);
+                assert_eq!(sort_collators(final_collators), sort_collators(current_collators));
             })
         }
 
@@ -221,16 +188,6 @@ mod chain_started_with_initial_colators {
                 // add 2 validators
                 add_two_collators_and_force_two_sessions();
 
-                //verify and remove 1 validator
-                let current_collators = avn_known_collators();
-                assert_eq!(current_collators, vec![
-                    TestAccount::derive_validator(5),
-                    TestAccount::derive_validator(3),
-                    TestAccount::derive_validator(4),
-                    TestAccount::derive_validator(1),
-                    TestAccount::derive_validator(2),
-                ]);
-
                 remove_collator_candidate(TestAccount::derive_validator(5).account_id, 5);
 
                 advance_session();
@@ -238,11 +195,11 @@ mod chain_started_with_initial_colators {
 
                 //check if validator was removed
                 let final_collators = avn_known_collators();
-                assert_eq!(final_collators, vec![
-                    TestAccount::derive_validator(3),
-                    TestAccount::derive_validator(4),
+                assert_eq!(sort_collators(final_collators), vec![
                     TestAccount::derive_validator(1),
                     TestAccount::derive_validator(2),
+                    TestAccount::derive_validator(3),
+                    TestAccount::derive_validator(4),
                 ]);
             })
         }
@@ -285,12 +242,12 @@ mod chain_started_with_initial_colators {
 
                 let final_collators = avn_known_collators();
 
-                assert_eq!(final_collators, vec![
-                    TestAccount::derive_validator(5),
-                    TestAccount::derive_validator(3),
-                    TestAccount::derive_validator(4),
+                assert_eq!(sort_collators(final_collators), vec![
                     TestAccount::derive_validator(1),
                     TestAccount::derive_validator(2),
+                    TestAccount::derive_validator(3),
+                    TestAccount::derive_validator(4),
+                    TestAccount::derive_validator(5),
                 ]);
             })
         }

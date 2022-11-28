@@ -22,7 +22,7 @@ fn remove_collator_candidate(id: AccountId, validators_count: u32) {
 
 fn sort_collators(mut collators: Vec<sp_avn_common::event_types::Validator<UintAuthorityId, sp_core::sr25519::Public>>)
 -> Vec<sp_avn_common::event_types::Validator<UintAuthorityId, sp_core::sr25519::Public>>{
-    collators.sort_by(|a, b| a.account_id.partial_cmp(&b.account_id).unwrap());
+    collators.sort_by(|a, b| a.account_id.cmp(&b.account_id));
     collators
 }
 
@@ -121,6 +121,8 @@ mod chain_started_with_initial_colators {
 
                 let mut final_collators = avn_known_collators();
 
+                let mut final_collators2 = avn_known_collators();
+
                 assert_eq!(final_collators,
                     vec![
                     TestAccount::derive_validator(3),
@@ -129,9 +131,9 @@ mod chain_started_with_initial_colators {
                     TestAccount::derive_validator(2),
                     ]);
 
-                // let sortedCollators = sort_collators(final_collators);
+                let sortedCollators2 = sort_collators(final_collators2);
 
-                // println!("sorted collators: {:?}", sortedCollators);
+                println!("sorted collators: {:?}", sortedCollators2);
 
                 // println!("sorted collators print check: {:?}", 1);
                 // println!("sorted collators: {:?}", sort_collators(final_collators));

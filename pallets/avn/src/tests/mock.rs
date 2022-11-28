@@ -2,23 +2,22 @@
 
 #![cfg(test)]
 
-use pallet_parachain_staking as staking;
 use crate::{self as pallet_avn, *};
 use frame_support::{
     parameter_types,
-    traits::{GenesisBuild, ValidatorRegistration, OnFinalize, OnInitialize},
+    traits::{GenesisBuild, OnFinalize, OnInitialize, ValidatorRegistration},
     weights::Weight,
-    BasicExternalities,
-    PalletId};
+    BasicExternalities, PalletId,
+};
 use frame_system as system;
+use pallet_parachain_staking as staking;
 
-use pallet_session as session;
 use crate::mock::system::RawOrigin;
+use frame_support::assert_ok;
+use pallet_session as session;
 use sp_core::{
     offchain::testing::{OffchainState, PendingRequest},
-    H256,
-    Pair,
-    sr25519,
+    sr25519, Pair, H256,
 };
 use sp_runtime::{
     testing::{Header, UintAuthorityId},
@@ -26,14 +25,12 @@ use sp_runtime::{
     Perbill,
 };
 use std::cell::RefCell;
-use frame_support::assert_ok;
 
 pub type AccountId = <Signature as Verify>::Signer;
 pub type AuthorityId = <Test as Config>::AuthorityId;
 pub type AVN = Pallet<Test>;
 pub type Signature = sr25519::Signature;
 pub type Balance = u128;
-
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -170,8 +167,8 @@ pub type ValidatorId = <Test as session::Config>::ValidatorId;
 //         // let seeds = VALIDATOR_SEEDS.with(|l| l.borrow_mut().take().unwrap());
 //         let seeds: Vec<u64> = vec![1,2,3];
 
-//         let validator_ids = seeds.into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
-//         Some(validator_ids)
+//         let validator_ids = seeds.into_iter().map(|id|
+// TestAccount::derive_account_id(id)).collect();         Some(validator_ids)
 //     }
 //     fn end_session(_: SessionIndex) {}
 //     fn start_session(_: SessionIndex) {}
@@ -196,7 +193,7 @@ pub struct TestAccount {
 
 impl TestAccount {
     pub fn new(id: u64) -> Self {
-        TestAccount { seed: Self::into_32_bytes(&id)}
+        TestAccount { seed: Self::into_32_bytes(&id) }
     }
 
     pub fn account_id(&self) -> AccountId {
@@ -217,26 +214,27 @@ impl TestAccount {
     }
 
     pub fn derive_account_id(id: u64) -> AccountId {
-        return Self::new(id).account_id();
+        return Self::new(id).account_id()
     }
 
     pub fn derive_validator(id: u64) -> Validator<<Test as Config>::AuthorityId, AccountId> {
         return Self::derive_custom_validator(id, id)
     }
 
-    pub fn derive_validator_key(id: u64, key: u64) -> Validator<<Test as Config>::AuthorityId, AccountId> {
-        return Self::derive_custom_validator(id, key);
+    pub fn derive_validator_key(
+        id: u64,
+        key: u64,
+    ) -> Validator<<Test as Config>::AuthorityId, AccountId> {
+        return Self::derive_custom_validator(id, key)
     }
 
-
-    pub fn derive_custom_validator(id: u64, auth_id: u64) -> Validator<<Test as Config>::AuthorityId, AccountId> {
+    pub fn derive_custom_validator(
+        id: u64,
+        auth_id: u64,
+    ) -> Validator<<Test as Config>::AuthorityId, AccountId> {
         let account_id = Self::derive_account_id(id);
-        return Validator {
-            account_id: account_id,
-            key: UintAuthorityId(auth_id)
-        }
+        return Validator { account_id, key: UintAuthorityId(auth_id) }
     }
-
 }
 
 pub struct ExtBuilder {
@@ -245,8 +243,7 @@ pub struct ExtBuilder {
 
 impl ExtBuilder {
     pub fn build_default() -> Self {
-        let storage =
-            frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+        let storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
         Self { storage }
     }
 
@@ -257,7 +254,10 @@ impl ExtBuilder {
         ext
     }
 
-    pub fn with_staking(mut self, initial_validators:Vec<(sp_core::sr25519::Public, u128)>) -> Self{
+    pub fn with_staking(
+        mut self,
+        initial_validators: Vec<(sp_core::sr25519::Public, u128)>,
+    ) -> Self {
         pallet_parachain_staking::GenesisConfig::<Test> {
             candidates: initial_validators,
             nominations: vec![],
@@ -271,16 +271,18 @@ impl ExtBuilder {
     }
 
     pub fn with_balances(mut self, account_balances: Vec<(AccountId, Balance)>) -> Self {
-        pallet_balances::GenesisConfig::<Test> {
-            balances: account_balances
-        }
-        .assimilate_storage(&mut self.storage)
-        .expect("Pallet balances storage can be assimilated");
+        pallet_balances::GenesisConfig::<Test> { balances: account_balances }
+            .assimilate_storage(&mut self.storage)
+            .expect("Pallet balances storage can be assimilated");
         self
     }
 
     pub fn with_validators(mut self, initial_validators: Vec<u64>) -> Self {
-        let validators: Vec<AccountId> = initial_validators.clone().into_iter().map(|id| TestAccount::derive_account_id(id)).collect();
+        let validators: Vec<AccountId> = initial_validators
+            .clone()
+            .into_iter()
+            .map(|id| TestAccount::derive_account_id(id))
+            .collect();
 
         BasicExternalities::execute_with_storage(&mut self.storage, || {
             for ref k in &validators {
@@ -289,11 +291,11 @@ impl ExtBuilder {
         });
 
         let _ = pallet_session::GenesisConfig::<Test> {
-            keys: initial_validators.into_iter().enumerate().map(|(i, seed)| (
-                validators[i],
-                validators[i],
-                UintAuthorityId(seed)
-            )).collect(),
+            keys: initial_validators
+                .into_iter()
+                .enumerate()
+                .map(|(i, seed)| (validators[i], validators[i], UintAuthorityId(seed)))
+                .collect(),
         }
         .assimilate_storage(&mut self.storage);
         self
@@ -303,12 +305,11 @@ impl ExtBuilder {
 /************* Test helpers ************ */
 
 #[allow(dead_code)]
-pub fn keys_setup_return_good_validator(
-) -> Validator<<Test as Config>::AuthorityId, AccountId> {
+pub fn keys_setup_return_good_validator() -> Validator<<Test as Config>::AuthorityId, AccountId> {
     let validators = AVN::validators();
-    assert_eq!(validators[0], TestAccount::derive_validator(1) );
-    assert_eq!(validators[1], TestAccount::derive_validator(2) );
-    assert_eq!(validators[2], TestAccount::derive_validator(3) );
+    assert_eq!(validators[0], TestAccount::derive_validator(1));
+    assert_eq!(validators[1], TestAccount::derive_validator(2));
+    assert_eq!(validators[2], TestAccount::derive_validator(3));
     assert_eq!(validators.len(), 3);
 
     // AuthorityId type for Test is UintAuthorityId
@@ -358,7 +359,7 @@ pub fn mock_post_request(state: &mut OffchainState, body: Vec<u8>, response: Opt
 }
 
 #[allow(dead_code)]
-pub fn setup_keys()  {
+pub fn setup_keys() {
     let validators = AVN::validators();
     let keys: Vec<UintAuthorityId> = validators.into_iter().map(|v| v.key).collect();
 
@@ -367,23 +368,18 @@ pub fn setup_keys()  {
 
 #[allow(dead_code)]
 fn set_session_keys(collator_id: &AccountId, auth_id: AuthorityId) {
-    pallet_session::NextKeys::<Test>::insert::<AccountId, UintAuthorityId>(
-        *collator_id,
-        auth_id
-    );
+    pallet_session::NextKeys::<Test>::insert::<AccountId, UintAuthorityId>(*collator_id, auth_id);
 }
 
-pub fn add_collator(account_id: &AccountId, auth_id: AuthorityId) {
+pub fn add_collator_aux(account_id: &AccountId, auth_id: AuthorityId) {
     set_session_keys(account_id, auth_id);
     ParachainStaking::join_candidates(Origin::signed(account_id.clone()), 11u128, 4u32);
 }
 
-pub fn remove_collator(collator_id: &AccountId, validator_count: u32) {
+pub fn remove_collator_aux(collator_id: &AccountId, validator_count: u32) {
     ParachainStaking::schedule_leave_candidates(
-        RawOrigin::Signed(
-            collator_id.clone(),
-        ).into(),
-        validator_count
+        RawOrigin::Signed(collator_id.clone()).into(),
+        validator_count,
     );
 }
 
